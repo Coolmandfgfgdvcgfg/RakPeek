@@ -16,6 +16,12 @@ local function tween(obj, time, props, style, dir)
     return t
 end
 
+local OnCloseCallback: (() -> ())? = nil
+
+function FilterViewer.SetOnCloseCallback(cb: (() -> ())?)
+    OnCloseCallback = cb
+end
+
 function FilterViewer.Create(parentGui: ScreenGui, Core, onClose)
     local ID_NAMES = Core.ID_NAMES
 
@@ -73,7 +79,13 @@ function FilterViewer.Create(parentGui: ScreenGui, Core, onClose)
 
         if onClose then
             onClose()
-        else
+        end
+
+        if OnCloseCallback then
+            OnCloseCallback()
+        end
+
+        if not onClose and not OnCloseCallback then
             frame.Visible = false
         end
     end)
