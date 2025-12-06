@@ -119,7 +119,6 @@ local function makeMiniHighlighter()
 		elseif operatorsSet[token] then
 			return colors.operator
 		elseif luaSet[token] then
-			-- keep swapped scheme like your original
 			return colors.rbx
 		elseif rbxSet[token] then
 			return colors.lua
@@ -208,18 +207,15 @@ local function makeMiniHighlighter()
 		for i, tok in ipairs(tokens) do
 			if tok ~= "" then
 				local col = getHighlight(tokens, i)
+				local safe = tok:gsub("&","&amp;")
+					:gsub("<","&lt;")
+					:gsub(">","&gt;")
 				if col then
-					local safe = tok:gsub("&", "&amp;")
-						:gsub("<","&lt;")
-						:gsub(">","&gt;")
 					table.insert(highlighted, string.format(
 						"<font color=\"#%s\">%s</font>",
 						col:ToHex(), safe
 					))
 				else
-					local safe = tok:gsub("&", "&amp;")
-						:gsub("<","&lt;")
-						:gsub(">","&gt;")
 					table.insert(highlighted, safe)
 				end
 			end
@@ -373,7 +369,7 @@ local function buildReconstructedScript(entry, asReceive: boolean?)
 	table.insert(parts, "        local xi = math.floor(value)")
 	table.insert(parts, "        local frac = math.clamp(value - xi, 0, 0.996)")
 	table.insert(parts, "        local xf = math.floor(frac * 256 + 0.5)")
-	table.insert(parts, "        buffer.writeu8(buf, offset,     xi)")
+		table.insert(parts, "        buffer.writeu8(buf, offset,     xi)")
 	table.insert(parts, "        buffer.writeu8(buf, offset + 1, xf)")
 	table.insert(parts, "    end")
 	table.insert(parts, "")
@@ -463,6 +459,7 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
 	closeBtn.Parent = header
 
 	closeBtn.MouseButton1Click:Connect(function()
+		-- slide down from CURRENT position
 		local current = frame.Position
 		local target = UDim2.new(
 			current.X.Scale,
@@ -504,41 +501,41 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
 	infoLabel.Text = ""
 	infoLabel.Parent = topBar
 
+	local rightTop = Instance.new("Frame")
+	rightTop.BackgroundTransparency = 1
+	rightTop.Size = UDim2.new(0.45, 0, 1, 0)
+	rightTop.Parent = topBar
+
+	local rightLayout = Instance.new("UIListLayout")
+	rightLayout.FillDirection = Enum.FillDirection.Vertical
+	rightLayout.Padding = UDim.new(0, 2)
+	rightLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	rightLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	rightLayout.Parent = rightTop
+
 	local modeFrame = Instance.new("Frame")
 	modeFrame.BackgroundTransparency = 1
-	modeFrame.Size = UDim2.new(0.45, 0, 1, 0)
-	modeFrame.Parent = topBar
+	modeFrame.Size = UDim2.new(1, 0, 0, 22)
+	modeFrame.Parent = rightTop
 
 	local modeLayout = Instance.new("UIListLayout")
-	modeLayout.FillDirection = Enum.FillDirection.Vertical
-	modeLayout.Padding = UDim.new(0, 2)
-	modeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	modeLayout.FillDirection = Enum.FillDirection.Horizontal
+	modeLayout.Padding = UDim.new(0, 4)
+	modeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	modeLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 	modeLayout.Parent = modeFrame
 
-	local rowMode = Instance.new("Frame")
-	rowMode.BackgroundTransparency = 1
-	rowMode.Size = UDim2.new(1, 0, 0, 22)
-	rowMode.Parent = modeFrame
+	local dirFrame = Instance.new("Frame")
+	dirFrame.BackgroundTransparency = 1
+	dirFrame.Size = UDim2.new(1, 0, 0, 22)
+	dirFrame.Parent = rightTop
 
-	local rowModeLayout = Instance.new("UIListLayout")
-	rowModeLayout.FillDirection = Enum.FillDirection.Horizontal
-	rowModeLayout.Padding = UDim.new(0, 4)
-	rowModeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	rowModeLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-	rowModeLayout.Parent = rowMode
-
-	local rowDir = Instance.new("Frame")
-	rowDir.BackgroundTransparency = 1
-	rowDir.Size = UDim2.new(1, 0, 0, 22)
-	rowDir.Parent = modeFrame
-
-	local rowDirLayout = Instance.new("UIListLayout")
-	rowDirLayout.FillDirection = Enum.FillDirection.Horizontal
-	rowDirLayout.Padding = UDim.new(0, 4)
-	rowDirLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	rowDirLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-	rowDirLayout.Parent = rowDir
+	local dirLayout = Instance.new("UIListLayout")
+	dirLayout.FillDirection = Enum.FillDirection.Horizontal
+	dirLayout.Padding = UDim.new(0, 4)
+	dirLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	dirLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+	dirLayout.Parent = dirFrame
 
 	local function makeSmallButton(parent, text, width)
 		local b = Instance.new("TextButton")
@@ -559,10 +556,11 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
 		return b
 	end
 
-	local exactBtn = makeSmallButton(rowMode, "Exact", 90)
-	local reconBtn = makeSmallButton(rowMode, "Reconstructed", 110)
-	local sendBtn  = makeSmallButton(rowDir,  "Send", 80)
-	local recvBtn  = makeSmallButton(rowDir,  "Receive", 80)
+	local exactBtn = makeSmallButton(modeFrame, "Exact", 90)
+	local reconBtn = makeSmallButton(modeFrame, "Reconstructed", 110)
+	local sendBtn  = makeSmallButton(dirFrame,  "Send", 80)
+	local recvBtn  = makeSmallButton(dirFrame,  "Receive", 80)
+	local copyBtn  = makeSmallButton(dirFrame,  "Copy", 70)
 
 	-- EDITOR
 	local editorBg = Instance.new("Frame")
@@ -585,40 +583,39 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
 	editorScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
 	editorScroll.Parent = editorBg
 
-	local editorBox = Instance.new("TextBox")
-	editorBox.BackgroundTransparency = 1
-	editorBox.BorderSizePixel = 0
-	editorBox.Position = UDim2.new(0, 2, 0, 2)
-	editorBox.Size = UDim2.new(1, -4, 0, 0)
-	editorBox.Font = Enum.Font.Code
-	editorBox.TextSize = 13
-	editorBox.TextColor3 = Color3.fromRGB(235, 235, 235)
-	editorBox.TextXAlignment = Enum.TextXAlignment.Left
-	editorBox.TextYAlignment = Enum.TextYAlignment.Top
-	editorBox.MultiLine = true
-	editorBox.ClearTextOnFocus = false
-	editorBox.TextWrapped = false
-	editorBox.TextEditable = false -- read-only; copy still works, but includes RichText tags
-	editorBox.RichText = true
-	editorBox.Text = ""
-	editorBox.Parent = editorScroll
+	-- TextLabel instead of TextBox
+	local editorLabel = Instance.new("TextLabel")
+	editorLabel.BackgroundTransparency = 1
+	editorLabel.BorderSizePixel = 0
+	editorLabel.Position = UDim2.new(0, 2, 0, 2)
+	editorLabel.Size = UDim2.new(1, -4, 0, 0)
+	editorLabel.Font = Enum.Font.Code
+	editorLabel.TextSize = 13
+	editorLabel.TextColor3 = Color3.fromRGB(235, 235, 235)
+	editorLabel.TextXAlignment = Enum.TextXAlignment.Left
+	editorLabel.TextYAlignment = Enum.TextYAlignment.Top
+	editorLabel.TextWrapped = false
+	editorLabel.RichText = true
+	editorLabel.Text = ""
+	editorLabel.Parent = editorScroll
 
 	local function updateEditorCanvas()
 		local ok, bounds = pcall(function()
-			return editorBox.TextBounds
+			return editorLabel.TextBounds
 		end)
 		if not ok or not bounds then return end
 
-		editorBox.Size = UDim2.new(1, -4, 0, bounds.Y + 8)
-		editorScroll.CanvasSize = UDim2.new(0, 0, 0, editorBox.AbsoluteSize.Y + 4)
+		editorLabel.Size = UDim2.new(1, -4, 0, bounds.Y + 8)
+		editorScroll.CanvasSize = UDim2.new(0, 0, 0, editorLabel.AbsoluteSize.Y + 4)
 	end
 
-	editorBox:GetPropertyChangedSignal("TextBounds"):Connect(updateEditorCanvas)
+	editorLabel:GetPropertyChangedSignal("TextBounds"):Connect(updateEditorCanvas)
 
 	-- STATE
 	local currentEntry = entry
 	local isExactMode  = true
 	local isSendMode   = true
+	local lastPlainCode = "-- No packet selected"
 
 	local function setModeButtons()
 		if isExactMode then
@@ -662,7 +659,8 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
 	end
 
 	local function setEditorText(code)
-		editorBox.Text = highlightLua(code)
+		lastPlainCode = code
+		editorLabel.Text = highlightLua(code)
 		updateEditorCanvas()
 	end
 
@@ -685,6 +683,7 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
 		setEditorText(code)
 	end
 
+	-- Button handlers
 	exactBtn.MouseButton1Click:Connect(function()
 		if not isExactMode then
 			isExactMode = true
@@ -717,6 +716,12 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
 			isSendMode = false
 			setModeButtons()
 			refreshScript()
+		end
+	end)
+
+	copyBtn.MouseButton1Click:Connect(function()
+		if typeof(setclipboard) == "function" then
+			setclipboard(lastPlainCode or "")
 		end
 	end)
 
