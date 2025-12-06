@@ -2,6 +2,9 @@
 
 local Gui = {}
 
+local rowInstances = {}
+local selectedIndex = nil
+local PacketScriptBuilder = loadstring(game:HttpGet("https://raw.githubusercontent.com/Coolmandfgfgdvcgfg/RakPeek/refs/heads/main/src/PacketScriptBuilder.lua"))()
 local Players          = game:GetService("Players")
 local CoreGui          = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
@@ -508,8 +511,6 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
         end
     end)
 
-    local PacketScriptBuilder = loadstring(game:HttpGet("https://raw.githubusercontent.com/Coolmandfgfgdvcgfg/RakPeek/refs/heads/main/src/PacketScriptBuilder.lua"))()
-
     local scriptUi
     
     local buildScriptBtn = makeButton(row2, "Build Script", 120)
@@ -868,8 +869,6 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
     packetViewerTextBox:GetPropertyChangedSignal("TextBounds"):Connect(updateViewerCanvas)
 
     -- LIST / SELECTION
-    local rowInstances = {}
-    local selectedIndex = nil
 
     local ROW_COLOR    = Color3.fromRGB(45, 45, 45)
     local ROW_SELECTED = Color3.fromRGB(70, 70, 100)
