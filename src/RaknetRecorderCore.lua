@@ -23,7 +23,8 @@ local packetListeners = {}
 
 local ID_NAMES = {
     [0x1B] = "ID_PHYSICS",
-    [0x83] = "ID_REPLICATION",
+    [0x83] = "ID_DATA",
+    [0x86] = "ID_TOUCHES",
 }
 
 Core.ID_NAMES = ID_NAMES
