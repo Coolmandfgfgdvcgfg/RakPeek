@@ -2,11 +2,12 @@
 
 local Gui = {}
 
-local Players        = game:GetService("Players")
-local CoreGui        = game:GetService("CoreGui")
+local Players          = game:GetService("Players")
+local CoreGui          = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
-local TweenService   = game:GetService("TweenService")
+local TweenService     = game:GetService("TweenService")
 
+-- Simple tween helper
 local function tween(obj, time, props, style, dir)
     if not obj then return end
     local info = TweenInfo.new(
@@ -38,10 +39,11 @@ local function makeButton(parent, text, width)
 
     -- Soft press animation
     btn.MouseButton1Click:Connect(function()
-        tween(btn, 0.08, {Size = UDim2.new(0, (width or 90) - 2, 0, 22)}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        local baseW = width or 90
+        tween(btn, 0.08, {Size = UDim2.new(0, baseW - 2, 0, 22)}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
         task.delay(0.09, function()
             if btn then
-                tween(btn, 0.10, {Size = UDim2.new(0, width or 90, 0, 24)}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                tween(btn, 0.10, {Size = UDim2.new(0, baseW, 0, 24)}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
             end
         end)
     end)
@@ -233,13 +235,15 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
         uiCorner.Parent = mainFrame
     end
 
-    -- Pop-in animation for the window
     local originalPos = mainFrame.Position
-    mainFrame.Position = UDim2.new(originalPos.X.Scale, originalPos.X.Offset, originalPos.Y.Scale, originalPos.Y.Offset + 20)
-    mainFrame.BackgroundTransparency = 1
+    mainFrame.Position = UDim2.new(
+        originalPos.X.Scale,
+        originalPos.X.Offset,
+        originalPos.Y.Scale,
+        originalPos.Y.Offset + 20
+    )
     tween(mainFrame, 0.22, {
         Position = originalPos,
-        BackgroundTransparency = 0
     }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
     -- HEADER
@@ -267,38 +271,54 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
     titleLabel.Text = "RakPeek Packet Recorder"
     titleLabel.Parent = header
 
-    local ICON_COLOR_IDLE   = Color3.fromRGB(241, 157, 0)
-    local ICON_COLOR_ACTIVE = Color3.fromRGB(255, 200, 120)
+    local ICON_COLOR_IDLE   = Color3.fromRGB(220, 220, 220)
+    local ICON_COLOR_ACTIVE = Color3.fromRGB(255, 255, 255)
 
-    -- Filter viewer icon button
     local filtersButton = Instance.new("ImageButton")
     filtersButton.BackgroundTransparency = 1
-    filtersButton.Size = UDim2.new(0, 24, 1, 0)
-    filtersButton.Position = UDim2.new(1, -52, 0, 0)
+    filtersButton.Size = UDim2.new(0, 24, 0, 24)
+    filtersButton.Position = UDim2.new(1, -52, 0.5, -12)
     filtersButton.Image = "rbxassetid://7964618035"
     filtersButton.ImageColor3 = ICON_COLOR_IDLE
     filtersButton.Parent = header
 
-    -- Instance explorer icon button
     local closeButton = Instance.new("ImageButton")
     closeButton.BackgroundTransparency = 1
-    closeButton.Size = UDim2.new(0, 24, 1, 0)
-    closeButton.Position = UDim2.new(1, -26, 0, 0)
+    closeButton.Size = UDim2.new(0, 24, 0, 24)
+    closeButton.Position = UDim2.new(1, -26, 0.5, -12)
     closeButton.Image = "rbxassetid://101883294376981"
     closeButton.ImageColor3 = ICON_COLOR_IDLE
     closeButton.Parent = header
 
+    -- Soft hover/press for icon buttons
+    local function hookIconPress(btn)
+        btn.MouseButton1Click:Connect(function()
+            tween(btn, 0.08, {Size = UDim2.new(0, 22, 0, 22)}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            task.delay(0.09, function()
+                if btn then
+                    tween(btn, 0.10, {Size = UDim2.new(0, 24, 0, 24)}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+                end
+            end)
+        end)
+    end
+
+    hookIconPress(filtersButton)
+    hookIconPress(closeButton)
+
     makeDraggable(header, mainFrame)
 
     local instanceExplorerFrame = InstanceExplorer.Create(screenGui, function()
-        -- no-op callback
     end)
     instanceExplorerFrame.Visible = false
 
-    local instOpenPos  = instanceExplorerFrame.Position
-    local instClosedPos = UDim2.new(instOpenPos.X.Scale, instOpenPos.X.Offset, instOpenPos.Y.Scale, instOpenPos.Y.Offset + 20)
+    local instOpenPos   = instanceExplorerFrame.Position
+    local instClosedPos = UDim2.new(
+        instOpenPos.X.Scale,
+        instOpenPos.X.Offset,
+        instOpenPos.Y.Scale,
+        instOpenPos.Y.Offset + 20
+    )
     instanceExplorerFrame.Position = instClosedPos
-    instanceExplorerFrame.BackgroundTransparency = 1
 
     local instVisible = false
 
@@ -307,21 +327,11 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
 
         if instVisible then
             instanceExplorerFrame.Visible = true
-            tween(instanceExplorerFrame, 0.18, {
-                Position = instOpenPos,
-                BackgroundTransparency = 0
-            })
-            tween(closeButton, 0.15, {
-                ImageColor3 = ICON_COLOR_ACTIVE
-            })
+            tween(instanceExplorerFrame, 0.18, {Position = instOpenPos})
+            tween(closeButton, 0.15, {ImageColor3 = ICON_COLOR_ACTIVE})
         else
-            tween(instanceExplorerFrame, 0.18, {
-                Position = instClosedPos,
-                BackgroundTransparency = 1
-            })
-            tween(closeButton, 0.15, {
-                ImageColor3 = ICON_COLOR_IDLE
-            })
+            tween(instanceExplorerFrame, 0.18, {Position = instClosedPos})
+            tween(closeButton, 0.15, {ImageColor3 = ICON_COLOR_IDLE})
             task.delay(0.20, function()
                 if not instVisible and instanceExplorerFrame then
                     instanceExplorerFrame.Visible = false
@@ -335,44 +345,63 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
     local filterVisible = false
 
     if FilterViewer then
-        filterViewerFrame, refreshFilterViewer = FilterViewer.Create(screenGui, Core)
+        -- We'll pass an onClose callback so the X button inside can also update this icon
+        filterViewerFrame, refreshFilterViewer = FilterViewer.Create(screenGui, Core, function()
+            -- onClose from inside filter window
+            -- animate to closed state + update icon
+            filterVisible = false
+            tween(filterViewerFrame, 0.18, {Position = UDim2.new(
+                filterViewerFrame.Position.X.Scale,
+                filterViewerFrame.Position.X.Offset,
+                filterViewerFrame.Position.Y.Scale,
+                filterViewerFrame.Position.Y.Offset + 20
+            )})
+            tween(filtersButton, 0.15, {ImageColor3 = ICON_COLOR_IDLE})
+            task.delay(0.20, function()
+                if not filterVisible and filterViewerFrame then
+                    filterViewerFrame.Visible = false
+                end
+            end)
+        end)
+
+        -- Recompute open/closed positions now that frame exists
+        local fOpenPos = filterViewerFrame.Position
+        local fClosedPos = UDim2.new(
+            fOpenPos.X.Scale,
+            fOpenPos.X.Offset,
+            fOpenPos.Y.Scale,
+            fOpenPos.Y.Offset + 20
+        )
+        filterViewerFrame.Position = fClosedPos
         filterViewerFrame.Visible = false
 
-        local fOpenPos  = filterViewerFrame.Position
-        local fClosedPos = UDim2.new(fOpenPos.X.Scale, fOpenPos.X.Offset, fOpenPos.Y.Scale, fOpenPos.Y.Offset + 20)
-        filterViewerFrame.Position = fClosedPos
-        filterViewerFrame.BackgroundTransparency = 1
-
-        filtersButton.MouseButton1Click:Connect(function()
-            if not filterViewerFrame then return end
-            filterVisible = not filterVisible
-
-            if filterVisible then
+        local function setFilterOpen(open)
+            if open then
+                filterVisible = true
                 filterViewerFrame.Visible = true
                 if refreshFilterViewer then
                     refreshFilterViewer()
                 end
-                tween(filterViewerFrame, 0.18, {
-                    Position = fOpenPos,
-                    BackgroundTransparency = 0
-                })
-                tween(filtersButton, 0.15, {
-                    ImageColor3 = ICON_COLOR_ACTIVE
-                })
+                tween(filterViewerFrame, 0.18, {Position = fOpenPos})
+                tween(filtersButton, 0.15, {ImageColor3 = ICON_COLOR_ACTIVE})
             else
-                tween(filterViewerFrame, 0.18, {
-                    Position = fClosedPos,
-                    BackgroundTransparency = 1
-                })
-                tween(filtersButton, 0.15, {
-                    ImageColor3 = ICON_COLOR_IDLE
-                })
+                filterVisible = false
+                tween(filterViewerFrame, 0.18, {Position = fClosedPos})
+                tween(filtersButton, 0.15, {ImageColor3 = ICON_COLOR_IDLE})
                 task.delay(0.20, function()
                     if not filterVisible and filterViewerFrame then
                         filterViewerFrame.Visible = false
                     end
                 end)
             end
+        end
+
+        FilterViewer.SetOnCloseCallback = function()
+            setFilterOpen(false)
+        end
+
+        filtersButton.MouseButton1Click:Connect(function()
+            setFilterOpen(not filterVisible)
         end)
     else
         filtersButton.Visible = false
@@ -466,16 +495,6 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
     local replayAllBtn      = makeButton(row2, "Replay All", 120)
     local replayIncomingBtn = makeButton(row2, "Replay Incoming", 140)
     local replayOutgoingBtn = makeButton(row2, "Replay Outgoing", 140)
-
-    local delayLabel = Instance.new("TextLabel")
-    delayLabel.BackgroundTransparency = 1
-    delayLabel.Size = UDim2.new(0, 80, 1, 0)
-    delayLabel.Font = Enum.Font.Code
-    delayLabel.TextSize = 12
-    delayLabel.TextXAlignment = Enum.TextXAlignment.Left
-    delayLabel.TextColor3 = Color3.fromRGB(220, 220, 220)
-    delayLabel.Text = "Delay (s):"
-    delayLabel.Parent = row2
 
     local delayBox = Instance.new("TextBox")
     delayBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
@@ -702,13 +721,13 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
         c.Parent = listPane
     end
 
-    local headerRow = Instance.new("Frame")
-    headerRow.Name = "HeaderRow"
-    headerRow.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    headerRow.BorderSizePixel  = 0
-    headerRow.Size = UDim2.new(1, -8, 0, 20)
-    headerRow.Position = UDim2.new(0, 4, 0, 4)
-    headerRow.Parent = listPane
+    local headerRow2 = Instance.new("Frame")
+    headerRow2.Name = "HeaderRow"
+    headerRow2.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    headerRow2.BorderSizePixel  = 0
+    headerRow2.Size = UDim2.new(1, -8, 0, 20)
+    headerRow2.Position = UDim2.new(0, 4, 0, 4)
+    headerRow2.Parent = listPane
 
     local function makeHeaderLabel(text, xScale, widthScale)
         local lbl = Instance.new("TextLabel")
@@ -720,7 +739,7 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
         lbl.Text = text
         lbl.Position = UDim2.new(xScale, 0, 0, 0)
         lbl.Size = UDim2.new(widthScale, 0, 1, 0)
-        lbl.Parent = headerRow
+        lbl.Parent = headerRow2
         return lbl
     end
 
@@ -845,11 +864,12 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
 
     packetViewerTextBox:GetPropertyChangedSignal("TextBounds"):Connect(updateViewerCanvas)
 
+    -- LIST / SELECTION
     local rowInstances = {}
     local selectedIndex = nil
 
-    local ROW_COLOR        = Color3.fromRGB(45, 45, 45)
-    local ROW_SELECTED     = Color3.fromRGB(70, 70, 100)
+    local ROW_COLOR    = Color3.fromRGB(45, 45, 45)
+    local ROW_SELECTED = Color3.fromRGB(70, 70, 100)
 
     local function updatePacketViewer(entry)
         if not entry then
