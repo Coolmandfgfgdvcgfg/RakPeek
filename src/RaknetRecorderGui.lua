@@ -519,25 +519,24 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
         return false
     end
 
-    local function isCurrentIdIgnored()
+   local function isCurrentIdIgnored()
         local id = parsePacketId(filterIdBox.Text)
         if not id then return false end
-
+    
         local dirs = getFilterDirs()
         for _, dir in ipairs(dirs) do
             if Core.isIdIgnored(id, dir) then
                 return true
             end
         end
-
+    
         return false
     end
-
+    
     local function refreshFilterButtons()
         local blocked = isCurrentIdBlocked()
         local ignored = isCurrentIdIgnored()
-
-        -- Block / Unblock (red)
+    
         if blocked then
             blockBtn.BackgroundColor3   = Color3.fromRGB(55, 55, 55)
             unblockBtn.BackgroundColor3 = Color3.fromRGB(160, 70, 70)
@@ -545,14 +544,13 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
             blockBtn.BackgroundColor3   = Color3.fromRGB(160, 70, 70)
             unblockBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
         end
-
-        -- Ignore / Unignore (orange)
+    
         if ignored then
-            ignoreBtn.BackgroundColor3   = Color3.fromRGB(200, 140, 40)
-            unignoreBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-        else
             ignoreBtn.BackgroundColor3   = Color3.fromRGB(55, 55, 55)
-            unignoreBtn.BackgroundColor3 = Color3.fromRGB(200, 140, 40)
+            unignoreBtn.BackgroundColor3 = Color3.fromRGB(160, 70, 70)
+        else
+            ignoreBtn.BackgroundColor3   = Color3.fromRGB(160, 70, 70)
+            unignoreBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
         end
     end
 
