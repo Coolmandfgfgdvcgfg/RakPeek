@@ -539,7 +539,7 @@ function Gui.init(Core, parentGuiOverride: ScreenGui?)
         or CoreGui
 
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "RaknetPacketRecorder"
+    screenGui.Name = "RakPeek"
     screenGui.ResetOnSpawn = false
     screenGui.IgnoreGuiInset = true
     screenGui.Parent = parentGui
@@ -584,7 +584,7 @@ function Gui.init(Core, parentGuiOverride: ScreenGui?)
     titleLabel.TextSize = 14
     titleLabel.TextXAlignment = Enum.TextXAlignment.Left
     titleLabel.TextColor3 = Color3.fromRGB(230, 230, 230)
-    titleLabel.Text = "RakNet Packet Recorder"
+    titleLabel.Text = "RakPeek Packet Recorder"
     titleLabel.Parent = header
 
     closeButton = Instance.new("TextButton")
