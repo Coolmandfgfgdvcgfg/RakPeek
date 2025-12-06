@@ -6,9 +6,10 @@ local function loadModule(name)
     return fn()
 end
 
-local Core = loadModule("RaknetRecorderCore")
+local Core             = loadModule("RaknetRecorderCore")
 local InstanceExplorer = loadModule("InstanceExplorer")
-local Gui = loadModule("RaknetRecorderGui")
+local FilterViewer     = loadModule("RaknetFilterViewer")
+local Gui              = loadModule("RaknetRecorderGui")
 
 Core.installHooks()
-Gui.init(Core, InstanceExplorer)
+Gui.init(Core, InstanceExplorer, FilterViewer)
