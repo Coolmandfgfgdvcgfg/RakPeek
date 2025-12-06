@@ -7,7 +7,6 @@ local CoreGui          = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
 local TweenService     = game:GetService("TweenService")
 
--- Simple tween helper
 local function tween(obj, time, props, style, dir)
     if not obj then return end
     local info = TweenInfo.new(
@@ -37,7 +36,6 @@ local function makeButton(parent, text, width)
 
     btn.Parent = parent
 
-    -- Soft press animation
     btn.MouseButton1Click:Connect(function()
         local baseW = width or 90
         tween(btn, 0.08, {Size = UDim2.new(0, baseW - 2, 0, 22)}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -290,7 +288,6 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
     closeButton.ImageColor3 = ICON_COLOR_IDLE
     closeButton.Parent = header
 
-    -- Soft hover/press for icon buttons
     local function hookIconPress(btn)
         btn.MouseButton1Click:Connect(function()
             tween(btn, 0.08, {Size = UDim2.new(0, 22, 0, 22)}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -307,8 +304,7 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
 
     makeDraggable(header, mainFrame)
 
-    local instanceExplorerFrame = InstanceExplorer.Create(screenGui, function()
-    end)
+    local instanceExplorerFrame = InstanceExplorer.Create(screenGui)
     instanceExplorerFrame.Visible = false
 
     local instOpenPos   = instanceExplorerFrame.Position
@@ -321,6 +317,13 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
     instanceExplorerFrame.Position = instClosedPos
 
     local instVisible = false
+
+    if InstanceExplorer.SetOnCloseCallback then
+        InstanceExplorer.SetOnCloseCallback(function()
+            instVisible = false
+            tween(closeButton, 0.15, {ImageColor3 = ICON_COLOR_IDLE})
+        end)
+    end
 
     closeButton.MouseButton1Click:Connect(function()
         instVisible = not instVisible
@@ -340,31 +343,12 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
         end
     end)
 
-    -- Filter viewer (blocked / ignored list)
     local filterViewerFrame, refreshFilterViewer = nil, nil
     local filterVisible = false
 
     if FilterViewer then
-        -- We'll pass an onClose callback so the X button inside can also update this icon
-        filterViewerFrame, refreshFilterViewer = FilterViewer.Create(screenGui, Core, function()
-            -- onClose from inside filter window
-            -- animate to closed state + update icon
-            filterVisible = false
-            tween(filterViewerFrame, 0.18, {Position = UDim2.new(
-                filterViewerFrame.Position.X.Scale,
-                filterViewerFrame.Position.X.Offset,
-                filterViewerFrame.Position.Y.Scale,
-                filterViewerFrame.Position.Y.Offset + 20
-            )})
-            tween(filtersButton, 0.15, {ImageColor3 = ICON_COLOR_IDLE})
-            task.delay(0.20, function()
-                if not filterVisible and filterViewerFrame then
-                    filterViewerFrame.Visible = false
-                end
-            end)
-        end)
+        filterViewerFrame, refreshFilterViewer = FilterViewer.Create(screenGui, Core)
 
-        -- Recompute open/closed positions now that frame exists
         local fOpenPos = filterViewerFrame.Position
         local fClosedPos = UDim2.new(
             fOpenPos.X.Scale,
@@ -396,8 +380,10 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
             end
         end
 
-        FilterViewer.SetOnCloseCallback = function()
-            setFilterOpen(false)
+        if FilterViewer.SetOnCloseCallback then
+            FilterViewer.SetOnCloseCallback(function()
+                setFilterOpen(false)
+            end)
         end
 
         filtersButton.MouseButton1Click:Connect(function()
@@ -407,7 +393,6 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
         filtersButton.Visible = false
     end
 
-    -- CONTROLS AREA (TOP)
     local controlsFrame = Instance.new("Frame")
     controlsFrame.Name = "Controls"
     controlsFrame.Size = UDim2.new(1, -12, 0, 130)
