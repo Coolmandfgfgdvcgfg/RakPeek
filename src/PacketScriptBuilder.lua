@@ -3,7 +3,7 @@
 -- Supports:
 --   - Exact mode: exact bytes -> buffer -> raknet.send / receive
 --   - Reconstructed mode only (ID 0x1B) atm: decode position, expose as variables,
---     and use a small converter function to rebuild the full packet.
+--     and use a small converter function to rebuild the packet from id + pos only.
 
 local PacketScriptBuilder = {}
 
@@ -121,8 +121,6 @@ local function buildBytesTableLiteral(buf)
 end
 
 local function buildExactScript(entry, asReceive: boolean?)
-    local dirComment = asReceive and "receive" or "send"
-
     local buf = entry.buf
     local len = buffer.len(buf)
 
@@ -162,26 +160,20 @@ local function buildExactScript(entry, asReceive: boolean?)
 end
 
 -- Reconstructed script for physics (0x1B).
--- Uses:
---   local ID_PHYSICS = 0x1B
---   local pos        = Vector3.new(...)
---   local function buildPhysicsPacket(id, pos) ... end
 local function buildReconstructedScript(entry, asReceive: boolean?)
     local buf = entry.buf
     local pos = decodePhysicsPosFromPacket(buf)
-
-    local bytesLiteral = buildBytesTableLiteral(buf)
-    local dirComment   = asReceive and "receive" or "send"
+    local packetLen = entry.len or buffer.len(buf) or 64
 
     local parts = {}
 
-    table.insert(parts, "-- Reconstructed physics packet (0x1B)")
-    table.insert(parts, "-- Uses captured template bytes but re-encodes position from variables below.")
-    table.insert(parts, string.format("-- Index: %d | Dir: %s | ID: 0x%02X | Len: %d",
+    table.insert(parts, "-- Reconstructed physics packet (0x1B) without raw template")
+    table.insert(parts, "-- Uses id + pos variables and a small converter to build a packet.")
+    table.insert(parts, string.format("-- Index: %d | Dir: %s | ID: 0x%02X | CapturedLen: %d",
         entry.index or -1,
         entry.dir or "?",
         entry.id or 0,
-        entry.len or buffer.len(buf)
+        buffer.len(buf)
     ))
     table.insert(parts, "")
 
@@ -199,22 +191,16 @@ local function buildReconstructedScript(entry, asReceive: boolean?)
 
     table.insert(parts, "local id  = ID_PHYSICS")
     table.insert(parts, "")
-    table.insert(parts, "-- Template: original captured bytes (we will overwrite the pos fields)")
-    table.insert(parts, bytesLiteral)
-    table.insert(parts, "")
 
     table.insert(parts, "local function buildPhysicsPacket(id, pos)")
-    table.insert(parts, "    local buf = buffer.create(#bytes)")
-    table.insert(parts, "    for i, b in ipairs(bytes) do")
-    table.insert(parts, "        buffer.writeu8(buf, i-1, b)")
-    table.insert(parts, "    end")
+    table.insert(parts, string.format("    -- Adjust packetLen if needed; captured packet length was %d", buffer.len(buf)))
+    table.insert(parts, string.format("    local packetLen = %d", packetLen))
+    table.insert(parts, "    local buf = buffer.create(packetLen)")
     table.insert(parts, "")
-    table.insert(parts, "    -- Overwrite top-level ID if necessary")
-    table.insert(parts, "    if id ~= nil then")
-    table.insert(parts, "        buffer.writeu8(buf, 0, id)")
-    table.insert(parts, "    end")
+    table.insert(parts, "    -- Write top-level ID")
+    table.insert(parts, "    buffer.writeu8(buf, 0, id)")
     table.insert(parts, "")
-    table.insert(parts, "    -- Encode position components into the same packed format the game uses")
+    table.insert(parts, "    -- Encode position components into the packed format the game uses")
     table.insert(parts, "    local function writeComponent(offset, value)")
     table.insert(parts, "        local xi = math.floor(value)")
     table.insert(parts, "        local frac = math.clamp(value - xi, 0, 0.996)")
@@ -227,6 +213,9 @@ local function buildReconstructedScript(entry, asReceive: boolean?)
     table.insert(parts, "    writeComponent(0x1D, pos.X)")
     table.insert(parts, "    writeComponent(0x1F, pos.Y)")
     table.insert(parts, "    writeComponent(0x21, pos.Z)")
+    table.insert(parts, "")
+    table.insert(parts, "    -- TODO: Fill in any other fields required by the physics protocol")
+    table.insert(parts, "    -- e.g. timestamp, velocity, flags, etc.")
     table.insert(parts, "")
     table.insert(parts, "    return buf")
     table.insert(parts, "end")
@@ -262,8 +251,7 @@ end
 --
 -- parentGui: ScreenGui where window should live
 --
--- Returns frame, plus a small API:
--- {
+-- Returns {
 --   Frame = frame,
 --   SetEntry = function(newEntry) ... end,
 -- }
@@ -339,6 +327,7 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
 
     makeDraggable(header, frame)
 
+    -- TOP BAR (info + mode controls)
     local topBar = Instance.new("Frame")
     topBar.BackgroundTransparency = 1
     topBar.Size = UDim2.new(1, -12, 0, 28)
@@ -354,7 +343,7 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
 
     local infoLabel = Instance.new("TextLabel")
     infoLabel.BackgroundTransparency = 1
-    infoLabel.Size = UDim2.new(0.6, 0, 1, 0)
+    infoLabel.Size = UDim2.new(0.55, 0, 1, 0)
     infoLabel.Font = Enum.Font.Code
     infoLabel.TextSize = 12
     infoLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -364,21 +353,45 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
 
     local modeFrame = Instance.new("Frame")
     modeFrame.BackgroundTransparency = 1
-    modeFrame.Size = UDim2.new(0.4, 0, 1, 0)
+    modeFrame.Size = UDim2.new(0.45, 0, 1, 0)
     modeFrame.Parent = topBar
 
     local modeLayout = Instance.new("UIListLayout")
-    modeLayout.FillDirection = Enum.FillDirection.Horizontal
-    modeLayout.Padding = UDim.new(0, 4)
+    modeLayout.FillDirection = Enum.FillDirection.Vertical
+    modeLayout.Padding = UDim.new(0, 2)
     modeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
     modeLayout.VerticalAlignment = Enum.VerticalAlignment.Center
     modeLayout.Parent = modeFrame
 
-    local function makeSmallButton(text)
+    local rowMode = Instance.new("Frame")
+    rowMode.BackgroundTransparency = 1
+    rowMode.Size = UDim2.new(1, 0, 0, 22)
+    rowMode.Parent = modeFrame
+
+    local rowModeLayout = Instance.new("UIListLayout")
+    rowModeLayout.FillDirection = Enum.FillDirection.Horizontal
+    rowModeLayout.Padding = UDim.new(0, 4)
+    rowModeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    rowModeLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    rowModeLayout.Parent = rowMode
+
+    local rowDir = Instance.new("Frame")
+    rowDir.BackgroundTransparency = 1
+    rowDir.Size = UDim2.new(1, 0, 0, 22)
+    rowDir.Parent = modeFrame
+
+    local rowDirLayout = Instance.new("UIListLayout")
+    rowDirLayout.FillDirection = Enum.FillDirection.Horizontal
+    rowDirLayout.Padding = UDim.new(0, 4)
+    rowDirLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    rowDirLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+    rowDirLayout.Parent = rowDir
+
+    local function makeSmallButton(parent, text, width)
         local b = Instance.new("TextButton")
         b.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
         b.BorderSizePixel  = 0
-        b.Size = UDim2.new(0, 90, 0, 22)
+        b.Size = UDim2.new(0, width or 80, 0, 22)
         b.Font = Enum.Font.Code
         b.TextSize = 12
         b.TextColor3 = Color3.fromRGB(230, 230, 230)
@@ -389,15 +402,16 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
         c.CornerRadius = UDim.new(0, 4)
         c.Parent = b
 
-        b.Parent = modeFrame
+        b.Parent = parent
         return b
     end
 
-    local exactBtn  = makeSmallButton("Exact")
-    local reconBtn  = makeSmallButton("Reconstructed")
-    local sendBtn   = makeSmallButton("Send")
-    local recvBtn   = makeSmallButton("Receive")
+    local exactBtn  = makeSmallButton(rowMode, "Exact", 90)
+    local reconBtn  = makeSmallButton(rowMode, "Reconstructed", 110)
+    local sendBtn   = makeSmallButton(rowDir,  "Send", 80)
+    local recvBtn   = makeSmallButton(rowDir,  "Receive", 80)
 
+    -- EDITOR
     local editorBg = Instance.new("Frame")
     editorBg.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     editorBg.BorderSizePixel  = 0
@@ -447,6 +461,7 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
 
     editorBox:GetPropertyChangedSignal("TextBounds"):Connect(updateEditorCanvas)
 
+    -- STATE & REFRESH
     local currentEntry = entry
     local isExactMode  = true
     local isSendMode   = true
