@@ -2,7 +2,8 @@
 
 local InstanceExplorer = {}
 
-local Players = game:GetService("Players")
+local Players      = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
 
 -- INSTANCE EXPLORER / DEBUG-ID CACHE
 
@@ -59,12 +60,24 @@ local function describeInstance(inst: Instance, id: string?): string
 	return table.concat(pieces, "\n")
 end
 
+local function tween(obj, time, props, style, dir)
+	if not obj then return end
+	local info = TweenInfo.new(
+		time or 0.15,
+		style or Enum.EasingStyle.Quad,
+		dir or Enum.EasingDirection.Out
+	)
+	local t = TweenService:Create(obj, info, props)
+	t:Play()
+	return t
+end
+
 function InstanceExplorer.Create(parentGui: ScreenGui, onClose: (() -> ())?): Frame
 	BuildInstanceCache()
 
-	local PAGE_SIZE = 200
-	local entries   = {}
-	local loadedCount = 0
+	local PAGE_SIZE    = 200
+	local entries      = {}
+	local loadedCount  = 0
 
 	local explorer = Instance.new("Frame")
 	explorer.Name = "InstanceExplorer"
@@ -110,9 +123,17 @@ function InstanceExplorer.Create(parentGui: ScreenGui, onClose: (() -> ())?): Fr
 	close.Parent = header
 
 	close.MouseButton1Click:Connect(function()
-		explorer.Visible = false
+		tween(close, 0.08, {TextSize = 14})
+		task.delay(0.09, function()
+			if close then
+				tween(close, 0.10, {TextSize = 16})
+			end
+		end)
+
 		if onClose then
 			onClose()
+		else
+			explorer.Visible = false
 		end
 	end)
 
@@ -249,6 +270,7 @@ function InstanceExplorer.Create(parentGui: ScreenGui, onClose: (() -> ())?): Fr
 	detailText.Font = Enum.Font.Code
 	detailText.TextSize = 12
 	detailText.TextXAlignment = Enum.TextXAlignment.Left
+
 	detailText.TextYAlignment = Enum.TextYAlignment.Top
 	detailText.TextColor3 = Color3.fromRGB(210, 210, 210)
 	detailText.TextWrapped = true
