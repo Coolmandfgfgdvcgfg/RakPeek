@@ -1,7 +1,7 @@
 -- PacketScriptBuilder.lua
 
 -- Supports:
---   - Exact mode: exact bytes -> buffer -> raknet.send / receive
+--   - Exact mode: exact bytes -> table -> raknet.send / receive
 --   - Reconstructed mode only (ID 0x1B): uses id + pos variables to build a packet.
 
 local PacketScriptBuilder = {}
@@ -245,7 +245,6 @@ local function decodePhysicsPosFromPacket(buf)
 	return Vector3.new(xi + xf, yi + yf, zi + zf)
 end
 
-
 local function buildBytesTableLiteral(buf)
 	local len = buffer.len(buf)
 	local lines = {}
@@ -297,29 +296,24 @@ local function buildExactScript(entry, asReceive: boolean?)
 
 	table.insert(parts, buildBytesTableLiteral(buf))
 	table.insert(parts, "")
-	table.insert(parts, "local buf = buffer.create(#bytes)")
-	table.insert(parts, "for i, b in ipairs(bytes) do")
-	table.insert(parts, "    buffer.writeu8(buf, i-1, b)")
-	table.insert(parts, "end")
-	table.insert(parts, "")
+
 	if asReceive then
 		table.insert(parts, "-- Make client believe it received this packet")
-		table.insert(parts, "raknet.receive(buf)")
+		table.insert(parts, "raknet.receive(bytes)")
 		table.insert(parts, "")
 		table.insert(parts, "-- Or send to server instead:")
-		table.insert(parts, "-- raknet.send(buf)")
+		table.insert(parts, "-- raknet.send(bytes)")
 	else
 		table.insert(parts, "-- Send packet to server")
-		table.insert(parts, "raknet.send(buf)")
+		table.insert(parts, "raknet.send(bytes)")
 		table.insert(parts, "")
 		table.insert(parts, "-- Or fake a receive instead:")
-		table.insert(parts, "-- raknet.receive(buf)")
+		table.insert(parts, "-- raknet.receive(bytes)")
 	end
 
 	return table.concat(parts, "\n")
 end
 
--- Reconstructed physics packet (no template, just id + pos)
 local function buildReconstructedScript(entry, asReceive: boolean?)
 	local buf = entry.buf
 	local pos = decodePhysicsPosFromPacket(buf)
@@ -369,7 +363,7 @@ local function buildReconstructedScript(entry, asReceive: boolean?)
 	table.insert(parts, "        local xi = math.floor(value)")
 	table.insert(parts, "        local frac = math.clamp(value - xi, 0, 0.996)")
 	table.insert(parts, "        local xf = math.floor(frac * 256 + 0.5)")
-		table.insert(parts, "        buffer.writeu8(buf, offset,     xi)")
+	table.insert(parts, "        buffer.writeu8(buf, offset,     xi)")
 	table.insert(parts, "        buffer.writeu8(buf, offset + 1, xf)")
 	table.insert(parts, "    end")
 	table.insert(parts, "")
@@ -459,7 +453,6 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
 	closeBtn.Parent = header
 
 	closeBtn.MouseButton1Click:Connect(function()
-		-- slide down from CURRENT position
 		local current = frame.Position
 		local target = UDim2.new(
 			current.X.Scale,
@@ -533,7 +526,7 @@ function PacketScriptBuilder.Create(parentGui: ScreenGui, entry)
 	local dirLayout = Instance.new("UIListLayout")
 	dirLayout.FillDirection = Enum.FillDirection.Horizontal
 	dirLayout.Padding = UDim.new(0, 4)
-	dirLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	dirLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	dirLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 	dirLayout.Parent = dirFrame
 
