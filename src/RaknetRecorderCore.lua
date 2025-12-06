@@ -248,6 +248,20 @@ function Core.isIdBlocked(id: number, dir: "SEND" | "RECV")
     return map and map[id] or false
 end
 
+function Core.isIdIgnored(id: number, dir: "SEND" | "RECV")
+    local map = ignoredIds[dir]
+    return map and map[id] or false
+end
+
+function Core.getBlockedIds()
+    return blockedIds
+end
+
+function Core.getIgnoredIds()
+    return ignoredIds
+end
+
+
 -- PACKET RECORDING / REPLAY
 
 local function addPacket(direction, buf)
