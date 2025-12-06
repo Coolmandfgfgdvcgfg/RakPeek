@@ -178,7 +178,7 @@ local function formatBufferHexAscii(buf)
 end
 
 -- MAIN GUI INIT
-function Gui.init(Core, InstanceExplorer, parentGuiOverride: ScreenGui?)
+function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: ScreenGui?)
     local ID_NAMES       = Core.ID_NAMES
     local parsePacketId  = Core.parsePacketId
     local decodeMovement = Core.decodeMovementPacket
@@ -223,7 +223,7 @@ function Gui.init(Core, InstanceExplorer, parentGuiOverride: ScreenGui?)
 
     local titleLabel = Instance.new("TextLabel")
     titleLabel.BackgroundTransparency = 1
-    titleLabel.Size = UDim2.new(1, -60, 1, 0)
+    titleLabel.Size = UDim2.new(1, -80, 1, 0)
     titleLabel.Position = UDim2.new(0, 8, 0, 0)
     titleLabel.Font = Enum.Font.Code
     titleLabel.TextSize = 14
@@ -231,6 +231,17 @@ function Gui.init(Core, InstanceExplorer, parentGuiOverride: ScreenGui?)
     titleLabel.TextColor3 = Color3.fromRGB(230, 230, 230)
     titleLabel.Text = "RakPeek Packet Recorder"
     titleLabel.Parent = header
+
+    -- Button to open filter viewer (blocked/ignored list)
+    local filtersButton = Instance.new("TextButton")
+    filtersButton.BackgroundTransparency = 1
+    filtersButton.Size = UDim2.new(0, 24, 1, 0)
+    filtersButton.Position = UDim2.new(1, -52, 0, 0)
+    filtersButton.Font = Enum.Font.Code
+    filtersButton.TextSize = 14
+    filtersButton.TextColor3 = Color3.fromRGB(241, 157, 0)
+    filtersButton.Text = "F"
+    filtersButton.Parent = header
 
     local closeButton = Instance.new("TextButton")
     closeButton.BackgroundTransparency = 1
@@ -255,6 +266,23 @@ function Gui.init(Core, InstanceExplorer, parentGuiOverride: ScreenGui?)
             local visible = not instanceExplorerFrame.Visible
             instanceExplorerFrame.Visible = visible
             closeButton.Text = visible and "<" or ">"
+        end
+    end)
+
+    -- Filter viewer (blocked / ignored list)
+    local filterViewerFrame, refreshFilterViewer = nil, nil
+    if FilterViewer then
+        filterViewerFrame, refreshFilterViewer = FilterViewer.Create(screenGui, Core)
+        filterViewerFrame.Visible = false
+    end
+
+    filtersButton.MouseButton1Click:Connect(function()
+        if filterViewerFrame then
+            local visible = not filterViewerFrame.Visible
+            filterViewerFrame.Visible = visible
+            if visible and refreshFilterViewer then
+                refreshFilterViewer()
+            end
         end
     end)
 
@@ -491,14 +519,40 @@ function Gui.init(Core, InstanceExplorer, parentGuiOverride: ScreenGui?)
         return false
     end
 
-    local function refreshBlockButtons()
+    local function isCurrentIdIgnored()
+        local id = parsePacketId(filterIdBox.Text)
+        if not id then return false end
+
+        local dirs = getFilterDirs()
+        for _, dir in ipairs(dirs) do
+            if Core.isIdIgnored(id, dir) then
+                return true
+            end
+        end
+
+        return false
+    end
+
+    local function refreshFilterButtons()
         local blocked = isCurrentIdBlocked()
+        local ignored = isCurrentIdIgnored()
+
+        -- Block / Unblock (red)
         if blocked then
             blockBtn.BackgroundColor3   = Color3.fromRGB(55, 55, 55)
             unblockBtn.BackgroundColor3 = Color3.fromRGB(160, 70, 70)
         else
             blockBtn.BackgroundColor3   = Color3.fromRGB(160, 70, 70)
             unblockBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+        end
+
+        -- Ignore / Unignore (orange)
+        if ignored then
+            ignoreBtn.BackgroundColor3   = Color3.fromRGB(200, 140, 40)
+            unignoreBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+        else
+            ignoreBtn.BackgroundColor3   = Color3.fromRGB(55, 55, 55)
+            unignoreBtn.BackgroundColor3 = Color3.fromRGB(200, 140, 40)
         end
     end
 
@@ -509,7 +563,7 @@ function Gui.init(Core, InstanceExplorer, parentGuiOverride: ScreenGui?)
         else
             idLabel.Text = "ID:"
         end
-        refreshBlockButtons()
+        refreshFilterButtons()
     end
 
     filterIdBox.FocusLost:Connect(function()
@@ -518,11 +572,11 @@ function Gui.init(Core, InstanceExplorer, parentGuiOverride: ScreenGui?)
             setFilterIdFromNumber(id)
         else
             idLabel.Text = "ID: (invalid)"
-            refreshBlockButtons()
+            refreshFilterButtons()
         end
     end)
 
-    refreshBlockButtons()
+    refreshFilterButtons()
 
     local bodyFrame = Instance.new("Frame")
     bodyFrame.Name = "Body"
@@ -871,7 +925,10 @@ function Gui.init(Core, InstanceExplorer, parentGuiOverride: ScreenGui?)
             end
         end
 
-        refreshBlockButtons()
+        refreshFilterButtons()
+        if refreshFilterViewer then
+            refreshFilterViewer()
+        end
     end
 
     blockBtn.MouseButton1Click:Connect(function()
