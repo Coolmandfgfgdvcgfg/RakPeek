@@ -5,24 +5,23 @@ local FilterViewer = {}
 function FilterViewer.Create(parentGui: ScreenGui, Core)
     local ID_NAMES = Core.ID_NAMES
 
+    -- Main frame
     local frame = Instance.new("Frame")
     frame.Name = "FilterViewer"
     frame.Size = UDim2.new(0, 420, 0, 260)
     frame.Position = UDim2.new(0, 520, 0, 100)
     frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
     frame.BorderSizePixel = 0
-    frame.Visible = true
     frame.Parent = parentGui
 
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 8)
     corner.Parent = frame
 
-    -- Header
     local header = Instance.new("Frame")
     header.Size = UDim2.new(1, 0, 0, 26)
     header.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    header.BorderSizePixel  = 0
+    header.BorderSizePixel = 0
     header.Parent = frame
 
     local hCorner = Instance.new("UICorner")
@@ -54,23 +53,22 @@ function FilterViewer.Create(parentGui: ScreenGui, Core)
         frame.Visible = false
     end)
 
+    -- Dragging logic
     local dragging = false
     local dragStart
     local startPos
 
     header.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging  = true
+            dragging = true
             dragStart = input.Position
-            startPos  = frame.Position
+            startPos = frame.Position
 
             local conn
             conn = input.Changed:Connect(function()
                 if input.UserInputState == Enum.UserInputState.End then
                     dragging = false
-                    if conn then
-                        conn:Disconnect()
-                    end
+                    if conn then conn:Disconnect() end
                 end
             end)
         end
@@ -97,7 +95,7 @@ function FilterViewer.Create(parentGui: ScreenGui, Core)
 
     local refreshBtn = Instance.new("TextButton")
     refreshBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-    refreshBtn.BorderSizePixel  = 0
+    refreshBtn.BorderSizePixel = 0
     refreshBtn.Size = UDim2.new(0, 80, 1, 0)
     refreshBtn.Font = Enum.Font.Code
     refreshBtn.TextSize = 12
@@ -123,7 +121,7 @@ function FilterViewer.Create(parentGui: ScreenGui, Core)
     -- List area
     local listFrame = Instance.new("Frame")
     listFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    listFrame.BorderSizePixel  = 0
+    listFrame.BorderSizePixel = 0
     listFrame.Size = UDim2.new(1, -8, 1, -60)
     listFrame.Position = UDim2.new(0, 4, 0, 58)
     listFrame.Parent = frame
@@ -132,33 +130,34 @@ function FilterViewer.Create(parentGui: ScreenGui, Core)
     listCorner.CornerRadius = UDim.new(0, 6)
     listCorner.Parent = listFrame
 
+    -- Column header
     local headerRow = Instance.new("Frame")
     headerRow.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    headerRow.BorderSizePixel  = 0
+    headerRow.BorderSizePixel = 0
     headerRow.Size = UDim2.new(1, -8, 0, 20)
     headerRow.Position = UDim2.new(0, 4, 0, 4)
     headerRow.Parent = listFrame
 
-    local function makeHeaderLabel(text, xScale, widthScale)
+    local function makeHeader(text, x, w)
         local lbl = Instance.new("TextLabel")
         lbl.BackgroundTransparency = 1
         lbl.Font = Enum.Font.Code
         lbl.TextSize = 12
         lbl.TextColor3 = Color3.fromRGB(220, 220, 220)
         lbl.TextXAlignment = Enum.TextXAlignment.Left
+        lbl.Position = UDim2.new(x, 0, 0, 0)
+        lbl.Size = UDim2.new(w, 0, 1, 0)
         lbl.Text = text
-        lbl.Position = UDim2.new(xScale, 0, 0, 0)
-        lbl.Size = UDim2.new(widthScale, 0, 1, 0)
         lbl.Parent = headerRow
-        return lbl
     end
 
-    makeHeaderLabel("#",       0.00, 0.07)
-    makeHeaderLabel("Type",    0.07, 0.18)
-    makeHeaderLabel("Dir",     0.25, 0.12)
-    makeHeaderLabel("ID/Name", 0.37, 0.33)
-    makeHeaderLabel("Note",    0.70, 0.30)
+    makeHeader("#",       0.00, 0.07)
+    makeHeader("Type",    0.07, 0.18)
+    makeHeader("Dir",     0.25, 0.12)
+    makeHeader("ID/Name", 0.37, 0.33)
+    makeHeader("Note",    0.70, 0.30)
 
+    -- Scroll area
     local listScroll = Instance.new("ScrollingFrame")
     listScroll.BackgroundTransparency = 1
     listScroll.BorderSizePixel = 0
@@ -169,77 +168,84 @@ function FilterViewer.Create(parentGui: ScreenGui, Core)
     listScroll.Parent = listFrame
 
     local listLayout = Instance.new("UIListLayout")
+    listLayout.Parent = listScroll
     listLayout.FillDirection = Enum.FillDirection.Vertical
     listLayout.Padding = UDim.new(0, 2)
     listLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    listLayout.Parent = listScroll
 
     listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         listScroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 4)
     end)
 
+    -- Row creation helpers
     local rows = {}
 
     local function clearRows()
-        for _, row in ipairs(rows) do
-            row:Destroy()
-        end
+        for _, r in ipairs(rows) do r:Destroy() end
         rows = {}
     end
 
+    -- Proper list row
     local function createRow(idx, kind, dir, id)
         local row = Instance.new("Frame")
         row.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-        row.BorderSizePixel  = 0
+        row.BorderSizePixel = 0
         row.Size = UDim2.new(1, 0, 0, 20)
         row.LayoutOrder = idx
         row.Parent = listScroll
 
-        local function mk(text, xScale, widthScale)
+        local function cell(text, x, w)
             local lbl = Instance.new("TextLabel")
             lbl.BackgroundTransparency = 1
             lbl.Font = Enum.Font.Code
             lbl.TextSize = 12
             lbl.TextColor3 = Color3.fromRGB(220, 220, 220)
             lbl.TextXAlignment = Enum.TextXAlignment.Left
+            lbl.Position = UDim2.new(x, 0, 0, 0)
+            lbl.Size = UDim2.new(w, 0, 1, 0)
             lbl.Text = text
-            lbl.Position = UDim2.new(xScale, 0, 0, 0)
-            lbl.Size = UDim2.new(widthScale, 0, 1, 0)
             lbl.Parent = row
-            return lbl
         end
 
         local name = ID_NAMES and ID_NAMES[id]
         local idText = name and string.format("0x%02X %s", id, name) or string.format("0x%02X", id)
-        local note = ""
 
-        if kind == "Blocked" then
-            note = "Packet will not be sent/received"
-        else
-            note = "Hidden from recorder list"
-        end
+        local note = (kind == "Blocked")
+            and "Packet is blocked"
+            or "Hidden from recorder list"
 
-        mk(tostring(idx),  0.00, 0.07)
-        mk(kind,           0.07, 0.18)
-        mk(dir,            0.25, 0.12)
-        mk(idText,         0.37, 0.33)
-        mk(note,           0.70, 0.30)
+        cell(tostring(idx), 0.00, 0.07)
+        cell(kind,          0.07, 0.18)
+        cell(dir,           0.25, 0.12)
+        cell(idText,        0.37, 0.33)
+        cell(note,          0.70, 0.30)
 
         table.insert(rows, row)
     end
 
+    local function createInfoRow(text)
+        local row = Instance.new("TextLabel")
+        row.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        row.BorderSizePixel = 0
+        row.Size = UDim2.new(1, 0, 0, 20)
+        row.LayoutOrder = 999999
+
+        row.Font = Enum.Font.Code
+        row.TextSize = 12
+        row.TextColor3 = Color3.fromRGB(220, 220, 220)
+        row.TextXAlignment = Enum.TextXAlignment.Left
+        row.Text = text
+        row.Parent = listScroll
+
+        table.insert(rows, row)
+    end
+
+    -- Refresh logic
     local function refresh()
         clearRows()
 
-        if not Core.getBlockedIds or not Core.getIgnoredIds then
-            createRow(1, "Info", "-", 0)
-            rows[1]:FindFirstChildOfClass("TextLabel").Text =
-                "Core.getBlockedIds / getIgnoredIds not implemented."
-            return
-        end
-
-        local blocked  = Core.getBlockedIds()  or {}
-        local ignored  = Core.getIgnoredIds()  or {}
+        local blocked = Core.getBlockedIds() or {}
+        local ignored = Core.getIgnoredIds() or {}
 
         local idx = 0
 
@@ -254,8 +260,7 @@ function FilterViewer.Create(parentGui: ScreenGui, Core)
         end
 
         if idx == 0 then
-            createRow(1, "Info", "-", 0)
-            rows[1]:FindFirstChildOfClass("TextLabel").Text = "No blocked / ignored IDs."
+            createInfoRow("No blocked / ignored IDs.")
         end
     end
 
