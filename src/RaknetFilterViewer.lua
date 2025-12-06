@@ -1,8 +1,22 @@
 -- RaknetFilterViewer.lua
 
+local TweenService = game:GetService("TweenService")
+
 local FilterViewer = {}
 
-function FilterViewer.Create(parentGui: ScreenGui, Core)
+local function tween(obj, time, props, style, dir)
+    if not obj then return end
+    local info = TweenInfo.new(
+        time or 0.15,
+        style or Enum.EasingStyle.Quad,
+        dir or Enum.EasingDirection.Out
+    )
+    local t = TweenService:Create(obj, info, props)
+    t:Play()
+    return t
+end
+
+function FilterViewer.Create(parentGui: ScreenGui, Core, onClose)
     local ID_NAMES = Core.ID_NAMES
 
     -- Main frame
@@ -49,8 +63,21 @@ function FilterViewer.Create(parentGui: ScreenGui, Core)
     close.Text = "X"
     close.Parent = header
 
+    -- Soft click animation + notify main UI
     close.MouseButton1Click:Connect(function()
-        frame.Visible = false
+        tween(close, 0.08, {TextSize = 14})
+        task.delay(0.09, function()
+            if close then
+                tween(close, 0.10, {TextSize = 16})
+            end
+        end)
+
+        if onClose then
+            onClose()
+        else
+            -- Fallback: just hide the frame if no callback was given
+            frame.Visible = false
+        end
     end)
 
     -- Dragging logic
@@ -106,6 +133,16 @@ function FilterViewer.Create(parentGui: ScreenGui, Core)
     local rCorner = Instance.new("UICorner")
     rCorner.CornerRadius = UDim.new(0, 4)
     rCorner.Parent = refreshBtn
+
+    -- Soft click for refresh
+    refreshBtn.MouseButton1Click:Connect(function()
+        tween(refreshBtn, 0.08, {Size = UDim2.new(0, 78, 1, 0)})
+        task.delay(0.09, function()
+            if refreshBtn then
+                tween(refreshBtn, 0.10, {Size = UDim2.new(0, 80, 1, 0)})
+            end
+        end)
+    end)
 
     local hintLabel = Instance.new("TextLabel")
     hintLabel.BackgroundTransparency = 1
@@ -181,11 +218,12 @@ function FilterViewer.Create(parentGui: ScreenGui, Core)
     local rows = {}
 
     local function clearRows()
-        for _, r in ipairs(rows) do r:Destroy() end
+        for _, r in ipairs(rows) do
+            r:Destroy()
+        end
         rows = {}
     end
 
-    -- Proper list row
     local function createRow(idx, kind, dir, id)
         local row = Instance.new("Frame")
         row.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
@@ -244,8 +282,8 @@ function FilterViewer.Create(parentGui: ScreenGui, Core)
     local function refresh()
         clearRows()
 
-        local blocked = Core.getBlockedIds() or {}
-        local ignored = Core.getIgnoredIds() or {}
+        local blocked = Core.getBlockedIds and Core.getBlockedIds() or {}
+        local ignored = Core.getIgnoredIds and Core.getIgnoredIds() or {}
 
         local idx = 0
 
