@@ -63,7 +63,6 @@ function FilterViewer.Create(parentGui: ScreenGui, Core, onClose)
     close.Text = "X"
     close.Parent = header
 
-    -- Soft click animation + notify main UI
     close.MouseButton1Click:Connect(function()
         tween(close, 0.08, {TextSize = 14})
         task.delay(0.09, function()
@@ -75,7 +74,6 @@ function FilterViewer.Create(parentGui: ScreenGui, Core, onClose)
         if onClose then
             onClose()
         else
-            -- Fallback: just hide the frame if no callback was given
             frame.Visible = false
         end
     end)
@@ -134,7 +132,6 @@ function FilterViewer.Create(parentGui: ScreenGui, Core, onClose)
     rCorner.CornerRadius = UDim.new(0, 4)
     rCorner.Parent = refreshBtn
 
-    -- Soft click for refresh
     refreshBtn.MouseButton1Click:Connect(function()
         tween(refreshBtn, 0.08, {Size = UDim2.new(0, 78, 1, 0)})
         task.delay(0.09, function()
@@ -214,7 +211,6 @@ function FilterViewer.Create(parentGui: ScreenGui, Core, onClose)
         listScroll.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 4)
     end)
 
-    -- Row creation helpers
     local rows = {}
 
     local function clearRows()
@@ -278,7 +274,6 @@ function FilterViewer.Create(parentGui: ScreenGui, Core, onClose)
         table.insert(rows, row)
     end
 
-    -- Refresh logic
     local function refresh()
         clearRows()
 
