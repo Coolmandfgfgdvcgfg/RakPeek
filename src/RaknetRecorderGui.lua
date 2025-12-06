@@ -508,6 +508,24 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
         end
     end)
 
+    local PacketScriptBuilder = loadstring(game:HttpGet("https://raw.githubusercontent.com/Coolmandfgfgdvcgfg/RakPeek/refs/heads/main/src/PacketScriptBuilder.lua"))()
+
+    local scriptUi
+    
+    local buildScriptBtn = makeButton(row2, "Build Script", 120)
+    buildScriptBtn.MouseButton1Click:Connect(function()
+        if not selectedIndex then return end
+        local entry = Core.getRecordedPackets()[selectedIndex]
+        if not entry then return end
+    
+        if scriptUi and scriptUi.Frame and scriptUi.Frame.Parent then
+            scriptUi.SetEntry(entry)
+        else
+            scriptUi = PacketScriptBuilder.Create(screenGui, entry)
+        end
+    end)
+
+
     -- Row3: record SEND/RECV toggles
     local togglesFrame = Instance.new("Frame")
     togglesFrame.Name = "Toggles"
