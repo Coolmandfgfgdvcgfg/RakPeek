@@ -514,22 +514,7 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
     local scriptUi
     
     local buildScriptBtn = makeButton(row2, "Build Script", 120)
-    buildScriptBtn.MouseButton1Click:Connect(function()
-            print("1")
-        if not selectedIndex then return end
-            print("2")
-        local entry = Core.getRecordedPackets()[selectedIndex]
-            print("3")
-        if not entry then return end
-    print("4")
-        if scriptUi and scriptUi.Frame and scriptUi.Frame.Parent then
-            scriptUi.SetEntry(entry)
-                print("5")
-        else
-            scriptUi = PacketScriptBuilder.Create(screenGui, entry)
-                print("6")
-        end
-    end)
+    
 
 
     -- Row3: record SEND/RECV toggles
@@ -1072,6 +1057,23 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
 
     unignoreBtn.MouseButton1Click:Connect(function()
         applyBlockAction("ignore", false)
+    end)
+
+    buildScriptBtn.MouseButton1Click:Connect(function()
+            print("1")
+        if not selectedIndex then return end
+            print("2")
+        local entry = Core.getRecordedPackets()[selectedIndex]
+            print("3")
+        if not entry then return end
+        print("4")
+        if scriptUi and scriptUi.Frame and scriptUi.Frame.Parent then
+            scriptUi.SetEntry(entry)
+            print("5")
+        else
+            scriptUi = PacketScriptBuilder.Create(screenGui, entry)
+            print("6")
+        end
     end)
 
     updateRecordButtons(false)
