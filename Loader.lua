@@ -1,7 +1,11 @@
 local base = "https://raw.githubusercontent.com/Coolmandfgfgdvcgfg/RakPeek/main/src/"
 
 local function loadModule(name)
-    local src = game:HttpGet(base .. name .. ".lua")
+    local nonce = tostring(math.random(1, 1e9))
+
+    local url = string.format("%s%s.lua?cache=%s", base, name, nonce)
+    local src = game:HttpGet(url)
+
     local fn = loadstring(src)
     return fn()
 end
