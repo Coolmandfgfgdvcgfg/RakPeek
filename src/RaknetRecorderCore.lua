@@ -254,13 +254,46 @@ function Core.isIdIgnored(id: number, dir: "SEND" | "RECV")
 end
 
 function Core.getBlockedIds()
-    return blockedIds
+    local result = {}
+    for dir, map in pairs(blockedIds) do
+        for id, _ in pairs(map) do
+            table.insert(result, {
+                dir = dir,
+                id  = id,
+            })
+        end
+    end
+
+    table.sort(result, function(a, b)
+        if a.dir == b.dir then
+            return a.id < b.id
+        end
+        return a.dir < b.dir
+    end)
+
+    return result
 end
 
 function Core.getIgnoredIds()
-    return ignoredIds
-end
+    local result = {}
+    for dir, map in pairs(ignoredIds) do
+        for id, _ in pairs(map) do
+            table.insert(result, {
+                dir = dir,
+                id  = id,
+            })
+        end
+    end
 
+    table.sort(result, function(a, b)
+        if a.dir == b.dir then
+            return a.id < b.id
+        end
+        return a.dir < b.dir
+    end)
+
+    return result
+end
 
 -- PACKET RECORDING / REPLAY
 
