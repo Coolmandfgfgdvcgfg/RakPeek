@@ -2,9 +2,22 @@
 
 local Gui = {}
 
-local Players = game:GetService("Players")
-local CoreGui = game:GetService("CoreGui")
+local Players        = game:GetService("Players")
+local CoreGui        = game:GetService("CoreGui")
 local UserInputService = game:GetService("UserInputService")
+local TweenService   = game:GetService("TweenService")
+
+local function tween(obj, time, props, style, dir)
+    if not obj then return end
+    local info = TweenInfo.new(
+        time or 0.2,
+        style or Enum.EasingStyle.Quad,
+        dir or Enum.EasingDirection.Out
+    )
+    local t = TweenService:Create(obj, info, props)
+    t:Play()
+    return t
+end
 
 local function makeButton(parent, text, width)
     local btn = Instance.new("TextButton")
@@ -15,12 +28,24 @@ local function makeButton(parent, text, width)
     btn.Size             = UDim2.new(0, width or 90, 0, 24)
     btn.BorderSizePixel  = 0
     btn.Text             = text
+    btn.AutoButtonColor  = false
 
     local corner = Instance.new("UICorner")
     corner.CornerRadius = UDim.new(0, 4)
     corner.Parent = btn
 
     btn.Parent = parent
+
+    -- Soft press animation
+    btn.MouseButton1Click:Connect(function()
+        tween(btn, 0.08, {Size = UDim2.new(0, (width or 90) - 2, 0, 22)}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        task.delay(0.09, function()
+            if btn then
+                tween(btn, 0.10, {Size = UDim2.new(0, width or 90, 0, 24)}, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+            end
+        end)
+    end)
+
     return btn
 end
 
@@ -60,23 +85,24 @@ local function makeToggle(labelText, initState, parent, width, onChanged)
 
     local state = initState
 
-    local function refresh()
-        if state then
-            box.BackgroundColor3 = Color3.fromRGB(80, 160, 80)
+    local function refresh(animated)
+        local targetColor = state and Color3.fromRGB(80, 160, 80) or Color3.fromRGB(60, 60, 60)
+        if animated then
+            tween(box, 0.12, {BackgroundColor3 = targetColor})
         else
-            box.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+            box.BackgroundColor3 = targetColor
         end
     end
 
     box.MouseButton1Click:Connect(function()
         state = not state
-        refresh()
+        refresh(true)
         if onChanged then
             onChanged(state)
         end
     end)
 
-    refresh()
+    refresh(false)
 
     local t = {}
 
@@ -86,7 +112,7 @@ local function makeToggle(labelText, initState, parent, width, onChanged)
 
     function t.Set(v)
         state = not not v
-        refresh()
+        refresh(true)
         if onChanged then
             onChanged(state)
         end
@@ -207,6 +233,15 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
         uiCorner.Parent = mainFrame
     end
 
+    -- Pop-in animation for the window
+    local originalPos = mainFrame.Position
+    mainFrame.Position = UDim2.new(originalPos.X.Scale, originalPos.X.Offset, originalPos.Y.Scale, originalPos.Y.Offset + 20)
+    mainFrame.BackgroundTransparency = 1
+    tween(mainFrame, 0.22, {
+        Position = originalPos,
+        BackgroundTransparency = 0
+    }, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
     -- HEADER
     local header = Instance.new("Frame")
     header.Name = "Header"
@@ -232,59 +267,116 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
     titleLabel.Text = "RakPeek Packet Recorder"
     titleLabel.Parent = header
 
-    -- Button to open filter viewer (blocked/ignored list)
-    local filtersButton = Instance.new("TextButton")
+    local ICON_COLOR_IDLE   = Color3.fromRGB(241, 157, 0)
+    local ICON_COLOR_ACTIVE = Color3.fromRGB(255, 200, 120)
+
+    -- Filter viewer icon button
+    local filtersButton = Instance.new("ImageButton")
     filtersButton.BackgroundTransparency = 1
     filtersButton.Size = UDim2.new(0, 24, 1, 0)
     filtersButton.Position = UDim2.new(1, -52, 0, 0)
-    filtersButton.Font = Enum.Font.Code
-    filtersButton.TextSize = 14
-    filtersButton.TextColor3 = Color3.fromRGB(241, 157, 0)
-    filtersButton.Text = "F"
+    filtersButton.Image = "rbxassetid://7964618035"
+    filtersButton.ImageColor3 = ICON_COLOR_IDLE
     filtersButton.Parent = header
 
-    local closeButton = Instance.new("TextButton")
+    -- Instance explorer icon button
+    local closeButton = Instance.new("ImageButton")
     closeButton.BackgroundTransparency = 1
     closeButton.Size = UDim2.new(0, 24, 1, 0)
     closeButton.Position = UDim2.new(1, -26, 0, 0)
-    closeButton.Font = Enum.Font.Code
-    closeButton.TextSize = 16
-    closeButton.TextColor3 = Color3.fromRGB(241, 157, 0)
-    closeButton.Text = ">"
+    closeButton.Image = "rbxassetid://101883294376981"
+    closeButton.ImageColor3 = ICON_COLOR_IDLE
     closeButton.Parent = header
 
     makeDraggable(header, mainFrame)
 
-    -- Instance explorer window from external module
     local instanceExplorerFrame = InstanceExplorer.Create(screenGui, function()
-        closeButton.Text = ">"
+        -- no-op callback
     end)
     instanceExplorerFrame.Visible = false
 
+    local instOpenPos  = instanceExplorerFrame.Position
+    local instClosedPos = UDim2.new(instOpenPos.X.Scale, instOpenPos.X.Offset, instOpenPos.Y.Scale, instOpenPos.Y.Offset + 20)
+    instanceExplorerFrame.Position = instClosedPos
+    instanceExplorerFrame.BackgroundTransparency = 1
+
+    local instVisible = false
+
     closeButton.MouseButton1Click:Connect(function()
-        if instanceExplorerFrame then
-            local visible = not instanceExplorerFrame.Visible
-            instanceExplorerFrame.Visible = visible
-            closeButton.Text = visible and "<" or ">"
+        instVisible = not instVisible
+
+        if instVisible then
+            instanceExplorerFrame.Visible = true
+            tween(instanceExplorerFrame, 0.18, {
+                Position = instOpenPos,
+                BackgroundTransparency = 0
+            })
+            tween(closeButton, 0.15, {
+                ImageColor3 = ICON_COLOR_ACTIVE
+            })
+        else
+            tween(instanceExplorerFrame, 0.18, {
+                Position = instClosedPos,
+                BackgroundTransparency = 1
+            })
+            tween(closeButton, 0.15, {
+                ImageColor3 = ICON_COLOR_IDLE
+            })
+            task.delay(0.20, function()
+                if not instVisible and instanceExplorerFrame then
+                    instanceExplorerFrame.Visible = false
+                end
+            end)
         end
     end)
 
     -- Filter viewer (blocked / ignored list)
     local filterViewerFrame, refreshFilterViewer = nil, nil
+    local filterVisible = false
+
     if FilterViewer then
         filterViewerFrame, refreshFilterViewer = FilterViewer.Create(screenGui, Core)
         filterViewerFrame.Visible = false
-    end
 
-    filtersButton.MouseButton1Click:Connect(function()
-        if filterViewerFrame then
-            local visible = not filterViewerFrame.Visible
-            filterViewerFrame.Visible = visible
-            if visible and refreshFilterViewer then
-                refreshFilterViewer()
+        local fOpenPos  = filterViewerFrame.Position
+        local fClosedPos = UDim2.new(fOpenPos.X.Scale, fOpenPos.X.Offset, fOpenPos.Y.Scale, fOpenPos.Y.Offset + 20)
+        filterViewerFrame.Position = fClosedPos
+        filterViewerFrame.BackgroundTransparency = 1
+
+        filtersButton.MouseButton1Click:Connect(function()
+            if not filterViewerFrame then return end
+            filterVisible = not filterVisible
+
+            if filterVisible then
+                filterViewerFrame.Visible = true
+                if refreshFilterViewer then
+                    refreshFilterViewer()
+                end
+                tween(filterViewerFrame, 0.18, {
+                    Position = fOpenPos,
+                    BackgroundTransparency = 0
+                })
+                tween(filtersButton, 0.15, {
+                    ImageColor3 = ICON_COLOR_ACTIVE
+                })
+            else
+                tween(filterViewerFrame, 0.18, {
+                    Position = fClosedPos,
+                    BackgroundTransparency = 1
+                })
+                tween(filtersButton, 0.15, {
+                    ImageColor3 = ICON_COLOR_IDLE
+                })
+                task.delay(0.20, function()
+                    if not filterVisible and filterViewerFrame then
+                        filterViewerFrame.Visible = false
+                    end
+                end)
             end
-        end
-    end)
+        end)
+    else
+        filtersButton.Visible = false
+    end
 
     -- CONTROLS AREA (TOP)
     local controlsFrame = Instance.new("Frame")
@@ -332,19 +424,25 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
     statusLabel.Text = "Status: Stopped"
     statusLabel.Parent = row1
 
-    local function updateRecordButtons()
+    local function updateRecordButtons(animated)
         if Core.isRecording() then
-            startBtn.AutoButtonColor = false
-            startBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-            stopBtn.AutoButtonColor = true
-            stopBtn.BackgroundColor3 = Color3.fromRGB(160, 70, 70)
+            if animated then
+                tween(startBtn, 0.12, {BackgroundColor3 = Color3.fromRGB(35, 35, 35)})
+                tween(stopBtn, 0.12,  {BackgroundColor3 = Color3.fromRGB(160, 70, 70)})
+            else
+                startBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+                stopBtn.BackgroundColor3  = Color3.fromRGB(160, 70, 70)
+            end
             statusLabel.Text = "Status: Recording"
             statusLabel.TextColor3 = Color3.fromRGB(160, 240, 160)
         else
-            startBtn.AutoButtonColor = true
-            startBtn.BackgroundColor3 = Color3.fromRGB(70, 160, 70)
-            stopBtn.AutoButtonColor = false
-            stopBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+            if animated then
+                tween(startBtn, 0.12, {BackgroundColor3 = Color3.fromRGB(70, 160, 70)})
+                tween(stopBtn, 0.12,  {BackgroundColor3 = Color3.fromRGB(35, 35, 35)})
+            else
+                startBtn.BackgroundColor3 = Color3.fromRGB(70, 160, 70)
+                stopBtn.BackgroundColor3  = Color3.fromRGB(35, 35, 35)
+            end
             statusLabel.Text = "Status: Stopped"
             statusLabel.TextColor3 = Color3.fromRGB(220, 220, 160)
         end
@@ -519,38 +617,38 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
         return false
     end
 
-   local function isCurrentIdIgnored()
+    local function isCurrentIdIgnored()
         local id = parsePacketId(filterIdBox.Text)
         if not id then return false end
-    
+
         local dirs = getFilterDirs()
         for _, dir in ipairs(dirs) do
             if Core.isIdIgnored(id, dir) then
                 return true
             end
         end
-    
+
         return false
     end
-    
+
     local function refreshFilterButtons()
         local blocked = isCurrentIdBlocked()
         local ignored = isCurrentIdIgnored()
-    
+
         if blocked then
-            blockBtn.BackgroundColor3   = Color3.fromRGB(55, 55, 55)
-            unblockBtn.BackgroundColor3 = Color3.fromRGB(160, 70, 70)
+            tween(blockBtn,   0.12, {BackgroundColor3 = Color3.fromRGB(55, 55, 55)})
+            tween(unblockBtn, 0.12, {BackgroundColor3 = Color3.fromRGB(160, 70, 70)})
         else
-            blockBtn.BackgroundColor3   = Color3.fromRGB(160, 70, 70)
-            unblockBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+            tween(blockBtn,   0.12, {BackgroundColor3 = Color3.fromRGB(160, 70, 70)})
+            tween(unblockBtn, 0.12, {BackgroundColor3 = Color3.fromRGB(55, 55, 55)})
         end
-    
+
         if ignored then
-            ignoreBtn.BackgroundColor3   = Color3.fromRGB(55, 55, 55)
-            unignoreBtn.BackgroundColor3 = Color3.fromRGB(160, 70, 70)
+            tween(ignoreBtn,   0.12, {BackgroundColor3 = Color3.fromRGB(55, 55, 55)})
+            tween(unignoreBtn, 0.12, {BackgroundColor3 = Color3.fromRGB(160, 70, 70)})
         else
-            ignoreBtn.BackgroundColor3   = Color3.fromRGB(160, 70, 70)
-            unignoreBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+            tween(ignoreBtn,   0.12, {BackgroundColor3 = Color3.fromRGB(160, 70, 70)})
+            tween(unignoreBtn, 0.12, {BackgroundColor3 = Color3.fromRGB(55, 55, 55)})
         end
     end
 
@@ -747,9 +845,11 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
 
     packetViewerTextBox:GetPropertyChangedSignal("TextBounds"):Connect(updateViewerCanvas)
 
-    -- LIST / SELECTION
     local rowInstances = {}
     local selectedIndex = nil
+
+    local ROW_COLOR        = Color3.fromRGB(45, 45, 45)
+    local ROW_SELECTED     = Color3.fromRGB(70, 70, 100)
 
     local function updatePacketViewer(entry)
         if not entry then
@@ -794,10 +894,9 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
         selectedIndex = idx
 
         for i, row in pairs(rowInstances) do
-            if row and row.BackgroundColor3 then
-                row.BackgroundColor3 = (i == selectedIndex)
-                    and Color3.fromRGB(70, 70, 100)
-                    or  Color3.fromRGB(45, 45, 45)
+            if row then
+                local target = (i == selectedIndex) and ROW_SELECTED or ROW_COLOR
+                tween(row, 0.12, {BackgroundColor3 = target})
             end
         end
 
@@ -817,7 +916,7 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
         local row = Instance.new("TextButton")
         row.Name = "Row" .. entry.index
         row.Size = UDim2.new(1, 0, 0, 20)
-        row.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        row.BackgroundColor3 = ROW_COLOR
         row.BorderSizePixel  = 0
         row.AutoButtonColor  = false
         row.Text             = ""
@@ -859,6 +958,9 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
 
         rowInstances[entry.index] = row
         updateCanvasSize()
+
+        row.BackgroundTransparency = 1
+        tween(row, 0.15, {BackgroundTransparency = 0})
     end
 
     local function rebuildList()
@@ -877,12 +979,12 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
     -- BUTTON CALLBACKS
     startBtn.MouseButton1Click:Connect(function()
         Core.startRecording()
-        updateRecordButtons()
+        updateRecordButtons(true)
     end)
 
     stopBtn.MouseButton1Click:Connect(function()
         Core.stopRecording()
-        updateRecordButtons()
+        updateRecordButtons(true)
     end)
 
     clearBtn.MouseButton1Click:Connect(function()
@@ -910,7 +1012,7 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
     local function applyBlockAction(kind, enable)
         local id = parsePacketId(filterIdBox.Text)
         if not id then
-            print("[RakNet Packet Recorder] Invalid packet ID")
+            print("[RakPeek Packet Recorder] Invalid packet ID")
             return
         end
 
@@ -945,7 +1047,7 @@ function Gui.init(Core, InstanceExplorer, FilterViewer, parentGuiOverride: Scree
         applyBlockAction("ignore", false)
     end)
 
-    updateRecordButtons()
+    updateRecordButtons(false)
 
     -- HOOK CORE -> GUI 
     Core.onPacketRecorded(function(entry)
